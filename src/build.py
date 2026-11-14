@@ -7,6 +7,7 @@ así las dos versiones no se desalinean. No hay dependencias externas.
 """
 import hashlib
 import html
+import re
 import json
 import shutil
 from datetime import date
@@ -334,11 +335,25 @@ def contact_section(L):
 
 
 def faq_block(L, title, items):
-    rows = "".join(f"<details><summary>{q}</summary><p>{a}</p></details>" for q, a in items)
+    rows = "".join(f"<details><summary><h3>{q}</h3></summary><p>{a}</p></details>" for q, a in items)
     return f"""<section class="block" id="faq"><div class="wrap">
   {sec_head(title)}
   <div class="faq">{rows}</div>
 </div></section>"""
+
+
+def faq_node(L, key, items):
+    def plain(x):
+        return html.unescape(re.sub(r"<[^>]+>", "", x))
+    return {
+        "@type": "FAQPage",
+        "@id": SITE + url(key, L) + "#faq",
+        "inLanguage": L,
+        "mainEntity": [
+            {"@type": "Question", "name": plain(q), "acceptedAnswer": {"@type": "Answer", "text": plain(a)}}
+            for q, a in items
+        ],
+    }
 
 
 def cta_block(L, heading, text):
@@ -377,7 +392,8 @@ def page_hero(L, num, brandword, h1, lead, stats):
     st = "".join(f"<div><strong>{a}</strong><span>{b}</span></div>" for a, b in stats)
     return f"""<section class="page-hero"><div class="wrap">
   <div class="line-tag"><span class="num" aria-hidden="true">{num}</span><span class="label">{t(L, "Línea", "Line")} {num}</span></div>
-  <h1><span class="brandword">{brandword}</span>{h1}</h1>
+  <p class="brandword">{brandword}</p>
+  <h1>{h1}</h1>
   <p class="lead">{lead}</p>
   <div class="stats">{st}</div>
 </div></section>"""
@@ -414,7 +430,7 @@ def build_home(L):
         for i, k in enumerate(LINES, 1)
     )
     svc_text = {
-        "forma": t(L, "Formación práctica en IA aplicada y Project Management para equipos que necesitan herramientas reales, no teoría. Compatible con FUNDAE: coste efectivo 0 €.", "Hands-on training in applied AI and Project Management for teams that need real tools, not theory. FUNDAE-eligible: effective cost €0."),
+        "forma": t(L, "Formación práctica en IA aplicada y Project Management para equipos que necesitan herramientas reales, no teoría. Bonificable hasta el 100 % con el crédito FUNDAE de tu empresa.", "Hands-on training in applied AI and Project Management for teams that need real tools, not theory. Up to 100% fundable with your company’s FUNDAE credit."),
         "asesora": t(L, "Criterio técnico-estratégico para decisiones de inversión, viabilidad y transformación de activos. Para inversores y directivos que necesitan más que un informe.", "Technical-strategic judgment for investment, feasibility and asset transformation. For investors and executives who need more than a report."),
         "dirige": t(L, "Dirección senior de expansión y obra para empresas que necesitan al mejor perfil en su proyecto, sin el coste de un director fijo a jornada completa.", "Senior expansion and construction direction for companies that need the best profile on their project, without the cost of a full-time director."),
     }
@@ -449,7 +465,7 @@ def build_home(L):
   <p class="display" aria-hidden="true"><em>…</em>{t(L, "libera todo tu potencial.", "unlock your full potential.")}</p>
   <h1>{t(L, "Asesoría estratégica para decisiones de inversión, expansión y obra.", "Strategic advisory for investment, expansion and construction decisions.")}</h1>
   <div class="hero-cta">
-    <p class="lead">{t(L, "No producimos informes estéticos — producimos criterio que resiste la pregunta difícil de un inversor o un comité.", "We don’t produce polished reports — we produce judgment that withstands the hard question from an investor or a board.")}</p>
+    <p class="lead">{t(L, "Entregamos criterio que resiste la pregunta difícil de un inversor o de un comité.", "We deliver judgment that withstands the hard question from an investor or a board.")}</p>
     <div class="btn-row">
       <a class="btn btn--fill" href="#contacto">{t(L, "Reservar una consulta", "Book a consultation")}</a>
       <a class="btn btn--line" href="#servicios">{t(L, "Ver servicios", "See services")}</a>
@@ -489,20 +505,20 @@ def build_forma(L):
     title = t(L, "Formación en IA y Project Management con FUNDAE | Zirotti", "AI & Project Management Training (FUNDAE) | Zirotti")
     desc = t(
         L,
-        "Cursos de 8–16 h de IA aplicada, Project Management y metodologías ágiles para equipos. Bonificables vía FUNDAE (coste efectivo 0 €). Presupuesto a medida.",
-        "Hands-on 8–16 h courses in applied AI, Project Management and agile for teams. FUNDAE-eligible (effective cost €0). Custom quote.",
+        "Cursos de 8–16 h de IA aplicada, Project Management y metodologías ágiles para equipos. Bonificables hasta el 100 % vía FUNDAE. Presupuesto a medida.",
+        "Hands-on 8–16 h courses in applied AI, Project Management and agile for teams. Up to 100% fundable via FUNDAE. Custom quote.",
     )
     label = "FORMA"
     hero = page_hero(
         L, "01", "FORMA",
-        t(L, "Formación aplicada en <em>IA y Project Management</em>", "Applied training in <em>AI and Project Management</em>"),
+        t(L, "Formación en IA y Project Management <em>bonificable por FUNDAE</em>", "AI and Project Management training, <em>FUNDAE-eligible</em>"),
         t(L, "Formación práctica para equipos que necesitan herramientas reales, no teoría. Cada sesión arranca con un caso real y termina con un entregable que el participante puede aplicar el lunes.", "Hands-on training for teams that need real tools, not theory. Every session starts with a real case and ends with a deliverable the participant can apply on Monday."),
-        [(t(L, "8–16h", "8–16h"), t(L, "por curso", "per course")), ("≤12", t(L, "participantes", "participants")), ("0 €", t(L, "coste vía FUNDAE", "cost via FUNDAE"))],
+        [(t(L, "8–16h", "8–16h"), t(L, "por curso", "per course")), ("≤12", t(L, "participantes", "participants")), (t(L, "hasta 100 %", "up to 100%"), t(L, "bonificable vía FUNDAE", "fundable via FUNDAE"))],
     )
     value = value_block(
         L,
         t(L, "FORMA enseña lo que un PM senior usa en obra, en comité y en la sala con el cliente.", "FORMA teaches what a senior PM actually uses on site, in committee and in the room with the client."),
-        [t(L, "La mayoría de la formación en IA y PM es teórica o genérica. Aquí no. La línea está diseñada para financiarse vía FUNDAE: el coste formativo se cubre con los créditos de formación de la empresa. Coste efectivo para el cliente: 0 €.", "Most AI and PM training is theoretical or generic. Not here. The line is designed to be funded via FUNDAE: the training cost is covered by the company’s training credits. Effective cost to the client: €0.")],
+        [t(L, "Cada curso parte de casos reales de obra, retail y expansión. La línea está diseñada para financiarse vía FUNDAE con el crédito de formación de la empresa, que puede cubrir hasta el 100 % del coste. Antes de presupuestar calculamos el crédito disponible de tu empresa.", "Every course starts from real construction, retail and expansion cases. The line is designed to be funded via FUNDAE with the company’s training credit, which can cover up to 100% of the cost. Before quoting, we calculate your company’s available credit.")],
     )
     bon = t(L, "Bonificable vía FUNDAE", "FUNDAE-eligible")
     quote = t(L, "presupuesto a medida", "custom quote")
@@ -543,21 +559,22 @@ def build_forma(L):
     fundae = f"""<section class="block block--tint"><div class="wrap">
   {sec_head(t(L, "Cómo funciona FUNDAE", "How FUNDAE works"))}
   <div class="fundae">
-    <div class="big">0 €<small>{t(L, "coste efectivo", "effective cost")}</small></div>
+    <div class="big">{t(L, "100 %", "100%")}<small>{t(L, "bonificación máxima", "maximum funding")}</small></div>
     <div class="prose"><p>{t(L, "FUNDAE gestiona los créditos de formación continua de las empresas españolas. Cada empresa tiene un crédito anual proporcional a su masa salarial. La formación bonificada cubre el 100 % del coste para pequeñas empresas y entre el 75–100 % para medianas y grandes.", "FUNDAE manages the continuous-training credits of Spanish companies. Each company has an annual credit proportional to its payroll. Subsidized training covers 100% of the cost for small companies and 75–100% for medium and large ones.")}</p></div>
   </div>
   <ol class="steps" style="margin-top:clamp(32px,4vw,56px)">{st}</ol>
 </div></section>"""
-    faq = faq_block(L, t(L, "Preguntas frecuentes", "Frequently asked questions"), [
+    faq_items = [
         (t(L, "¿Qué cursos de formación en IA y Project Management ofrece Zirotti?", "Which AI and Project Management courses does Zirotti offer?"),
          t(L, "Tres: IA aplicada a la gestión de proyectos y obra (16 h), Project Management para equipos de expansión (16 h) y Metodologías ágiles para directivos (8 h, formato intensivo). Todos parten de un caso real y terminan con un entregable aplicable.", "Three: Applied AI for project and construction management (16 h), Project Management for expansion teams (16 h) and Agile methodologies for executives (8 h, intensive format). All start from a real case and end with an applicable deliverable.")),
         (t(L, "¿Cuánto cuesta la formación si se bonifica con FUNDAE?", "How much does the training cost if funded through FUNDAE?"),
-         t(L, "El coste efectivo para el cliente es 0 € cuando la formación se financia con los créditos de formación de la empresa. La formación bonificada cubre el 100 % del coste en pequeñas empresas y entre el 75 % y el 100 % en medianas y grandes. Se presupuesta a medida.", "The effective cost to the client is €0 when the training is funded with the company’s training credits. Subsidized training covers 100% of the cost for small companies and 75–100% for medium and large ones. Quotes are custom.")),
+         t(L, "Depende del crédito FUNDAE disponible de tu empresa: lo calculamos antes de presupuestar. La formación bonificada cubre el 100 % del coste en pequeñas empresas y entre el 75 % y el 100 % en medianas y grandes. Se presupuesta a medida.", "It depends on your company’s available FUNDAE credit: we calculate it before quoting. Subsidized training covers 100% of the cost for small companies and 75–100% for medium and large ones. Quotes are custom.")),
         (t(L, "¿Cuántas personas pueden participar y cuánto dura un curso?", "How many people can attend and how long is a course?"),
          t(L, "Los grupos son de hasta 12 participantes (8 en el curso intensivo para directivos). Cada curso dura entre 8 y 16 horas, en jornadas de 8 h o módulos de 4 h.", "Groups are up to 12 participants (8 in the intensive executive course). Each course lasts 8 to 16 hours, in 8 h days or 4 h modules.")),
         (t(L, "¿Quién gestiona los trámites con FUNDAE?", "Who handles the FUNDAE paperwork?"),
          t(L, "Zirotti gestiona el proceso completo o apoya en la gestión propia de la empresa: alta como entidad organizadora o acuerdo con una gestora acreditada, comunicación previa a FUNDAE con 7 días de antelación, partes de asistencia y certificado.", "Zirotti manages the full process or supports your own: registration as organizing entity or agreement with an accredited manager, prior notice to FUNDAE 7 days in advance, attendance records and certificate.")),
-    ])
+    ]
+    faq = faq_block(L, t(L, "Preguntas frecuentes", "Frequently asked questions"), faq_items)
     cta = cta_block(
         L,
         t(L, "¿Formamos a tu equipo este trimestre?", "Shall we train your team this quarter?"),
@@ -568,6 +585,7 @@ def build_forma(L):
         service_node(L, "forma", "FORMA — " + t(L, "Formación aplicada en IA y Project Management", "Applied training in AI and Project Management"),
                      t(L, "Formación empresarial", "Corporate training"), desc),
         breadcrumb(L, "forma", label),
+        faq_node(L, "forma", faq_items),
     ]
     return page(L, "forma", title, desc, body, jsonld=jsonld)
 
@@ -582,13 +600,13 @@ def build_asesora(L):
     label = "ASESORA"
     hero = page_hero(
         L, "02", "ASESORA",
-        t(L, "Asesoría estratégica de <em>inversión y proyecto</em>", "Strategic <em>investment &amp; project</em> advisory"),
+        t(L, "Asesoría estratégica de inversión, <em>viabilidad y CAPEX</em>", "Strategic investment, <em>feasibility &amp; CAPEX</em> advisory"),
         t(L, "Criterio técnico-estratégico para decisiones de inversión, viabilidad y transformación de activos. Para inversores, promotores y directivos que necesitan más que un informe.", "Technical-strategic judgment for investment, feasibility and asset-transformation decisions. For investors, developers and executives who need more than a report."),
-        [("0,5–15M€" if L == "es" else "€0.5–15M", t(L, "CAPEX por proyecto", "CAPEX per project")), ("2", t(L, "formatos de contratación", "engagement formats")), (t(L, "Criterio", "Judgment"), t(L, "no informes estéticos", "not polished reports"))],
+        [("0,5–15M€" if L == "es" else "€0.5–15M", t(L, "CAPEX por proyecto", "CAPEX per project")), ("2", t(L, "formatos de contratación", "engagement formats")), (t(L, "Criterio", "Judgment"), t(L, "que resiste un comité", "that holds up in committee"))],
     )
     value = value_block(
         L,
-        t(L, "ASESORA no produce informes estéticos: produce <em>criterio</em>.", "ASESORA doesn’t produce polished reports: it produces <em>judgment</em>."),
+        t(L, "ASESORA entrega <em>criterio</em> que resiste un comité de inversión.", "ASESORA delivers <em>judgment</em> that holds up in an investment committee."),
         [
             t(L, "Cada entregable responde a una pregunta concreta que un inversor o directivo necesita resolver antes de comprometer capital o tiempo. El servicio combina análisis técnico de construcción y proyecto con visión de negocio y estructuración financiera básica.", "Each deliverable answers a concrete question an investor or executive needs to resolve before committing capital or time. The service combines technical construction and project analysis with business vision and basic financial structuring."),
             t(L, "El diferenciador frente a una consultora generalista: el asesor ha ejecutado proyectos de entre 0,5M€ y 15M€ de CAPEX, conoce la brecha entre el papel y la obra, y ha participado en comités de inversión reales.", "The differentiator versus a generalist consultancy: the advisor has executed projects between €0.5M and €15M in CAPEX, knows the gap between paper and site, and has sat on real investment committees."),
@@ -626,7 +644,7 @@ def build_asesora(L):
   {sec_head(t(L, "Sectores prioritarios", "Priority sectors"))}
   <ul class="sector-list">{sl}</ul>
 </div></section>"""
-    faq = faq_block(L, t(L, "Preguntas frecuentes", "Frequently asked questions"), [
+    faq_items = [
         (t(L, "¿En qué se diferencia ASESORA de una consultora generalista?", "How does ASESORA differ from a generalist consultancy?"),
          t(L, "El asesor ha ejecutado proyectos de entre 0,5 M€ y 15 M€ de CAPEX, conoce la brecha entre el papel y la obra y ha participado en comités de inversión reales. Cada entregable responde a una pregunta concreta que hay que resolver antes de comprometer capital o tiempo.", "The advisor has executed projects between €0.5M and €15M in CAPEX, knows the gap between paper and site, and has sat on real investment committees. Each deliverable answers a concrete question to resolve before committing capital or time.")),
         (t(L, "¿Qué formatos de contratación existen?", "What engagement formats are available?"),
@@ -635,7 +653,8 @@ def build_asesora(L):
          t(L, "Un documento estratégico, modelización de escenarios, matriz de riesgos y una presentación ejecutiva. Casos habituales: business case de un nuevo activo, viabilidad técnico-económica, informe de riesgo, CAPEX y cronograma para comité y estructuración de SPV.", "A strategic document, scenario modeling, a risk matrix and an executive presentation. Typical cases: new-asset business case, techno-economic feasibility, risk report, CAPEX and schedule for committee, and SPV structuring.")),
         (t(L, "¿Cuánto cuesta y cuánto tarda?", "How much does it cost and how long does it take?"),
          t(L, "Se presupuesta a medida tras una primera consulta, sin compromiso. El contrato fija alcance y entregables antes del inicio. Ciclo habitual: 4–8 semanas.", "Quotes are custom, after an initial no-commitment consultation. The contract sets scope and deliverables before kick-off. Typical cycle: 4–8 weeks.")),
-    ])
+    ]
+    faq = faq_block(L, t(L, "Preguntas frecuentes", "Frequently asked questions"), faq_items)
     cta = cta_block(
         L,
         t(L, "¿Tienes una decisión sobre la mesa?", "Have a decision on the table?"),
@@ -646,6 +665,7 @@ def build_asesora(L):
         service_node(L, "asesora", "ASESORA — " + t(L, "Asesoría estratégica de inversión y proyecto", "Strategic investment and project advisory"),
                      t(L, "Asesoría estratégica de inversión", "Strategic investment advisory"), desc),
         breadcrumb(L, "asesora", label),
+        faq_node(L, "asesora", faq_items),
     ]
     return page(L, "asesora", title, desc, body, jsonld=jsonld)
 
@@ -660,7 +680,7 @@ def build_dirige(L):
     label = "DIRIGE"
     hero = page_hero(
         L, "03", "DIRIGE",
-        t(L, "Dirección fractional de <em>expansión y obra</em>", "Fractional direction of <em>expansion &amp; construction</em>"),
+        t(L, "Director de expansión fractional para <em>restauración y retail</em>", "Fractional expansion director for <em>restaurant &amp; retail chains</em>"),
         t(L, "El mejor perfil en tu proyecto, sin el coste de un Director fijo a jornada completa. Acceso a 17 años de experiencia en apertura y remodelación de locales, hoteles y restaurantes.", "The best profile on your project, without the cost of a full-time Director. Access to 17 years of experience opening and remodeling retail units, hotels and restaurants."),
         [("+75M€" if L == "es" else "€75M+", t(L, "CAPEX gestionado", "CAPEX managed")), ("10–60", t(L, "unidades / cadena", "units / chain")), ("17", t(L, "años de experiencia", "years of experience"))],
     )
@@ -704,7 +724,7 @@ def build_dirige(L):
   {sec_head(t(L, "Alcance típico de un proyecto", "Typical project scope"))}
   <ol class="steps">{st}</ol>
 </div></section>"""
-    faq = faq_block(L, t(L, "Preguntas frecuentes", "Frequently asked questions"), [
+    faq_items = [
         (t(L, "¿Qué es un director de expansión fractional?", "What is a fractional expansion director?"),
          t(L, "Es un Director de Expansión o de Proyecto a tiempo parcial, con la experiencia de uno a tiempo completo. El modelo fractional da acceso a ese nivel con la flexibilidad y el coste de un colaborador externo, sin la estructura de un director fijo a jornada completa.", "A part-time Expansion or Project Director with the experience of a full-time one. The fractional model gives access to that level with the flexibility and cost of an external collaborator, without the overhead of a full-time director.")),
         (t(L, "¿Para quién es DIRIGE?", "Who is DIRIGE for?"),
@@ -713,7 +733,8 @@ def build_dirige(L):
          t(L, "El retainer mensual es de 20–40 h/mes según la fase, con mínimo trimestral renovable. El ciclo habitual de un proyecto es de 6–12 semanas y se formaliza con un contrato mercantil de servicios con SLA, dedicación y entregables definidos.", "The monthly retainer is 20–40 h/month depending on phase, with a renewable quarterly minimum. A typical project cycle is 6–12 weeks, formalised through a commercial services contract with SLA, dedication and defined deliverables.")),
         (t(L, "¿Qué incluye la dirección de un proyecto de apertura u obra?", "What does directing an opening or construction project include?"),
          t(L, "Desde la decisión de inversión hasta la entrega de llaves y puesta en marcha: viabilidad técnica, licencias y permisos, proyecto de ejecución, licitación, construcción y supervisión, FF&amp;E y apertura, con control de CAPEX, cronograma y reporting a inversor o comité.", "From investment decision to handover and go-live: technical feasibility, licenses and permits, execution project, tendering, construction and supervision, FF&amp;E and opening, with CAPEX control, schedule and reporting to investor or board.")),
-    ])
+    ]
+    faq = faq_block(L, t(L, "Preguntas frecuentes", "Frequently asked questions"), faq_items)
     cta = cta_block(
         L,
         t(L, "¿Diriges una expansión este año?", "Running an expansion this year?"),
@@ -724,6 +745,7 @@ def build_dirige(L):
         service_node(L, "dirige", "DIRIGE — " + t(L, "Dirección fractional de expansión y obra", "Fractional direction of expansion and construction"),
                      t(L, "Dirección de expansión y obra a tiempo parcial", "Fractional expansion and construction direction"), desc),
         breadcrumb(L, "dirige", label),
+        faq_node(L, "dirige", faq_items),
     ]
     return page(L, "dirige", title, desc, body, jsonld=jsonld)
 
