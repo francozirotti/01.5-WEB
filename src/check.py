@@ -69,7 +69,7 @@ for r, (f, p) in pages.items():
     canon = [l for l in p.links if l.get("rel") == "canonical"]
     if len(canon) != 1 or canon[0]["href"] != SITE + r: e(f"canonical incorrecto: {canon}")
     alts = {l["hreflang"]: l["href"] for l in p.links if l.get("rel") == "alternate"}
-    if "legal" not in r or True:
+    if alts:  # páginas de un solo idioma (artículos) no declaran alternativas
         for lang in ("es", "en", "x-default"):
             if lang not in alts: e(f"falta hreflang {lang}")
         # reciprocidad: la alterna debe apuntar de vuelta a esta página

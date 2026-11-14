@@ -37,6 +37,30 @@ PATHS = {
 LINES = ["forma", "asesora", "dirige"]
 
 
+# --------------------------------------------------------------------------
+# Artículos (solo ES): src/articles/*.md con cabecera --- clave: valor ---
+# --------------------------------------------------------------------------
+def load_articles():
+    arts = []
+    for f in sorted((SRC / "articles").glob("*.md")):
+        raw = f.read_text(encoding="utf-8")
+        _, fm, body = raw.split("---", 2)
+        meta = {}
+        for line in fm.strip().splitlines():
+            k, _, v = line.partition(":")
+            meta[k.strip()] = v.strip()
+        meta["body"] = body.strip()
+        meta["key"] = "art:" + f.stem
+        arts.append(meta)
+    return arts
+
+
+ARTICLES = load_articles()
+for _a in ARTICLES:
+    # sin versión inglesa: el selector de idioma lleva a la home EN
+    PATHS[_a["key"]] = (_a["slug"], "/en/")
+
+
 def t(L, es, en):
     return es if L == "es" else en
 
@@ -740,7 +764,7 @@ def build_dirige(L):
         t(L, "¿Diriges una expansión este año?", "Running an expansion this year?"),
         t(L, "Contrato mercantil de servicios con SLA, dedicación y entregables definidos. Ciclo habitual: 6–12 semanas.", "Commercial services contract with SLA, dedication and defined deliverables. Typical cycle: 6–12 weeks."),
     )
-    body = crumbs(L, label) + hero + value + formats + scope_sec + faq + cta + others_block(L, "dirige")
+    body = crumbs(L, label) + hero + value + formats + scope_sec + articles_block(L, "dirige") + faq + cta + others_block(L, "dirige")
     jsonld = [
         service_node(L, "dirige", "DIRIGE — " + t(L, "Dirección fractional de expansión y obra", "Fractional direction of expansion and construction"),
                      t(L, "Dirección de expansión y obra a tiempo parcial", "Fractional expansion and construction direction"), desc),
@@ -748,6 +772,131 @@ def build_dirige(L):
         faq_node(L, "dirige", faq_items),
     ]
     return page(L, "dirige", title, desc, body, jsonld=jsonld)
+
+
+def md_inline(s):
+    s = esc(s).replace("&#x27;", "'")
+    s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
+    s = re.sub(r"(?<![*\w])\*(?!\s)(.+?)(?<!\s)\*(?!\w)", r"<em>\1</em>", s)
+
+    def link(m):
+        text, href = m.group(1), m.group(2).replace("&amp;", "&")
+        ext = href.startswith("http") and not href.startswith(SITE)
+        attrs = ' target="_blank" rel="noopener"' if ext else ""
+        return f'<a href="{esc(href)}"{attrs}>{text}</a>'
+    return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link, s)
+
+
+def md_to_html(md):
+    out, lines, i = [], md.splitlines(), 0
+    while i < len(lines):
+        ln = lines[i]
+        if not ln.strip():
+            i += 1; continue
+        if ln.startswith("### "):
+            out.append(f"<h3>{md_inline(ln[4:])}</h3>"); i += 1; continue
+        if ln.startswith("## "):
+            out.append(f"<h2>{md_inline(ln[3:])}</h2>"); i += 1; continue
+        if ln.startswith("|"):
+            rows = []
+            while i < len(lines) and lines[i].startswith("|"):
+                rows.append([c.strip() for c in lines[i].strip().strip("|").split("|")]); i += 1
+            head, body = rows[0], [r for r in rows[2:]]
+            th = "".join(f'<th scope="col">{md_inline(c)}</th>' for c in head)
+            tb = "".join("<tr>" + "".join((f'<th scope="row">{md_inline(c)}</th>' if j == 0 else f"<td>{md_inline(c)}</td>") for j, c in enumerate(r)) + "</tr>" for r in body)
+            out.append(f'<div class="table-wrap"><table><thead><tr>{th}</tr></thead><tbody>{tb}</tbody></table></div>'); continue
+        m = re.match(r"^(-|\d+\.) ", ln)
+        if m:
+            tag = "ul" if m.group(1) == "-" else "ol"
+            items = []
+            while i < len(lines) and re.match(r"^(-|\d+\.) ", lines[i]):
+                items.append(f"<li>{md_inline(re.sub(r'^(-|\d+\.) ', '', lines[i]))}</li>"); i += 1
+            out.append(f"<{tag}>{''.join(items)}</{tag}>"); continue
+        para = []
+        while i < len(lines) and lines[i].strip() and not re.match(r"^(#|\||-|\d+\.) ", lines[i]) and not lines[i].startswith("|"):
+            para.append(lines[i].strip()); i += 1
+        out.append(f"<p>{md_inline(' '.join(para))}</p>")
+    return "\n".join(out)
+
+
+def article_faq(md):
+    sec = md.split("## Preguntas frecuentes", 1)
+    if len(sec) < 2:
+        return []
+    block = sec[1].split("\n## ", 1)[0]
+    items = []
+    for part in block.split("### ")[1:]:
+        q, _, a = part.partition("\n")
+        items.append((q.strip(), " ".join(x.strip() for x in a.strip().splitlines())))
+    return items
+
+
+def build_article(a):
+    L = "es"
+    key, line = a["key"], a.get("line", "dirige")
+    names = line_names(L)
+    crumbs_html = f"""<div class="wrap crumbs"><nav aria-label="Migas de pan"><ol>
+  <li><a href="{url("home", L)}">Inicio</a></li>
+  <li><a href="{url(line, L)}">{names[line][0]}</a></li>
+  <li aria-current="page">{esc(a["h1"])}</li>
+</ol></nav></div>"""
+    body = crumbs_html + f"""<article class="article"><div class="wrap">
+  <header class="article-head">
+    <p class="label">{names[line][0]} · {t(L, "Artículo", "Article")}</p>
+    <h1>{esc(a["h1"])}</h1>
+    <p class="article-meta">Franco Giuseppe Zirotti · <time datetime="{a["date"]}">{date.fromisoformat(a["date"]).strftime("%d/%m/%Y")}</time></p>
+  </header>
+  <div class="article-body">
+{md_to_html(a["body"])}
+  </div>
+</div></article>""" + cta_block(
+        L,
+        t(L, "¿Diriges una expansión este año?", "Leading an expansion this year?"),
+        t(L, "Una primera conversación de 30 minutos, sin compromiso, para ver si DIRIGE encaja con tu plan de aperturas.", ""),
+    )
+    canon = SITE + a["slug"]
+    jsonld = [
+        {
+            "@type": "Article",
+            "@id": canon + "#article",
+            "headline": a["h1"],
+            "description": a["description"],
+            "inLanguage": L,
+            "datePublished": a["date"],
+            "dateModified": a["date"],
+            "mainEntityOfPage": canon,
+            "image": SITE + "/assets/og-image.png",
+            "author": {"@type": "Person", "@id": PERSON_ID, "name": "Franco Giuseppe Zirotti", "url": LINKEDIN},
+            "publisher": {"@type": "Organization", "@id": ORG_ID, "name": BRAND},
+            "about": {"@id": SITE + url(line, L) + "#service"},
+        },
+        {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "Inicio", "item": SITE + url("home", L)},
+                {"@type": "ListItem", "position": 2, "name": names[line][0], "item": SITE + url(line, L)},
+                {"@type": "ListItem", "position": 3, "name": a["h1"], "item": canon},
+            ],
+        },
+    ]
+    faq = article_faq(a["body"])
+    if faq:
+        jsonld.append(faq_node(L, key, faq))
+    return page(L, key, a["title"], a["description"], body, jsonld=jsonld, alt=False)
+
+
+def articles_block(L, line):
+    arts = [a for a in ARTICLES if a.get("line") == line] if L == "es" else []
+    if not arts:
+        return ""
+    items = "".join(
+        f'<a href="{a["slug"]}"><strong>{esc(a["h1"])}</strong><span class="d">{esc(a["description"])}</span><span class="arrow" aria-hidden="true">→</span></a>'
+        for a in arts
+    )
+    return f"""<section class="block"><div class="wrap">
+  {sec_head("Para leer antes de decidir")}
+  <div class="others">{items}</div>
+</div></section>"""
 
 
 def build_legal(L):
@@ -860,6 +1009,8 @@ def sitemap():
             ) + f'<xhtml:link rel="alternate" hreflang="x-default" href="{SITE + url(key, "es")}"/>'
             prio = "1.0" if key == "home" and L == "es" else ("0.9" if key == "home" else "0.8")
             rows.append(f"<url><loc>{SITE + url(key, L)}</loc><lastmod>{today}</lastmod><priority>{prio}</priority>{alts}</url>")
+    for a in ARTICLES:
+        rows.append(f"<url><loc>{SITE + a['slug']}</loc><lastmod>{a['date']}</lastmod><priority>0.7</priority></url>")
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
             + "\n".join(rows) + "\n</urlset>\n")
@@ -879,6 +1030,8 @@ def main():
     for key, fn in builders.items():
         for L in ("es", "en"):
             write(url(key, L), fn(L))
+    for a in ARTICLES:
+        write(a["slug"], build_article(a))
     write("/404.html", build_404())
     (OUT / "sitemap.xml").write_text(sitemap(), encoding="utf-8")
     (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n", encoding="utf-8")
